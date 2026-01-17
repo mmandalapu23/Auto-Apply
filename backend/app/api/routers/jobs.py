@@ -73,10 +73,21 @@ async def list_jobs(
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
     skip: int = 0,
-    limit: int = 50
+    limit: int = 50,
+    role_category: str = None,
+    country: str = None,
+    is_active_only: bool = True
 ):
-    """List user's jobs."""
-    jobs = JobService.list_jobs(db, current_user["user_id"], skip, limit)
+    """List user's jobs with optional filters."""
+    jobs = JobService.list_jobs(
+        db, 
+        current_user["user_id"], 
+        skip, 
+        limit,
+        role_category=role_category,
+        country=country,
+        is_active_only=is_active_only
+    )
     return [JobService.job_to_schema(j) for j in jobs]
 
 
@@ -148,6 +159,52 @@ async def match_job(
             "job_id": job_id,
             "match_score": match_score,
             "evidence_map": evidence_map
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/sync")
+async def sync_jobs(
+    source: str = "greenhouse",
+    board_token: str = None,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Sync jobs from external source and mark inactive jobs."""
+    if source != "greenhouse":
+        raise HTTPException(status_code=400, detail="Unsupported source")
+    
+    if not board_token:
+        raise HTTPException(status_code=400, detail="board_token required")
+    
+    try:
+        new_count, updated_count, archived_count = await JobService.sync_jobs(
+            db,
+            current_user["user_id"],
+            source=source,
+            board_token=board_token
+        )
+        
+        AuditService.log_action(
+            db,
+            current_user["user_id"],
+            "jobs_synced",
+            "job",
+            None,
+            details={
+                "source": source,
+                "new": new_count,
+                "updated": updated_count,
+                "archived": archived_count
+            }
+        )
+        
+        return {
+            "source": source,
+            "new_count": new_count,
+            "updated_count": updated_count,
+            "archived_count": archived_count
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

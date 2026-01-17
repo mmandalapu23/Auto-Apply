@@ -3,22 +3,76 @@
 {% block title %}Jobs - AutoApply ATS{% endblock %}
 
 {% block content %}
-<h2>Job Descriptions</h2>
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h2>Job Descriptions</h2>
+    <div style="display: flex; gap: 10px;">
+        <a href="/jobs/new" class="btn-primary">Add Job</a>
+        <form method="post" action="/jobs/refresh" style="margin: 0;">
+            <button type="submit" class="btn-primary">Refresh Jobs</button>
+        </form>
+    </div>
+</div>
 
-<a href="/jobs/new" class="btn-primary">Add Job</a>
+<!-- Filters -->
+<div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+    <form method="get" action="/jobs">
+        <div style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
+            <div>
+                <label for="role" style="display: block; margin-bottom: 5px; font-weight: bold;">Role Category:</label>
+                <select name="role" id="role" style="padding: 8px; border-radius: 4px; border: 1px solid #ddd; min-width: 200px;">
+                    <option value="">All Roles</option>
+                    {% for role in role_categories %}
+                    <option value="{{ role }}" {% if selected_role == role %}selected{% endif %}>{{ role }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div>
+                <label for="country" style="display: block; margin-bottom: 5px; font-weight: bold;">Location:</label>
+                <select name="country" id="country" style="padding: 8px; border-radius: 4px; border: 1px solid #ddd; min-width: 200px;">
+                    <option value="">All Locations</option>
+                    {% for loc in countries %}
+                    <option value="{{ loc }}" {% if selected_country == loc %}selected{% endif %}>{{ loc }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div>
+                <button type="submit" class="btn-primary" style="padding: 8px 20px;">Apply Filters</button>
+                {% if selected_role or selected_country %}
+                <a href="/jobs" class="btn-primary" style="padding: 8px 20px; background: #666; text-decoration: none; display: inline-block;">Clear Filters</a>
+                {% endif %}
+            </div>
+        </div>
+    </form>
+</div>
 
 <div class="jobs-list">
     {% for job in jobs %}
     <div class="job-card">
-        <h3><a href="/jobs/{{ job.id }}">{{ job.title }}</a></h3>
+        <div style="display: flex; justify-content: space-between; align-items: start;">
+            <h3><a href="/jobs/{{ job.id }}">{{ job.title }}</a></h3>
+            <div style="display: flex; gap: 5px;">
+                {% if job.is_remote %}
+                <span style="background: #28a745; color: white; padding: 3px 8px; border-radius: 3px; font-size: 12px;">Remote</span>
+                {% endif %}
+                {% if job.role_category %}
+                <span style="background: #007bff; color: white; padding: 3px 8px; border-radius: 3px; font-size: 12px;">{{ job.role_category }}</span>
+                {% endif %}
+            </div>
+        </div>
         <p><strong>{{ job.company }}</strong></p>
+        {% if job.location %}<p>📍 {{ job.location }}</p>{% endif %}
+        {% if job.employment_type %}<p>💼 {{ job.employment_type }}</p>{% endif %}
+        {% if job.salary_range %}<p>💰 {{ job.salary_range }}</p>{% endif %}
         {% if job.url %}<p><a href="{{ job.url }}" target="_blank">View Job</a></p>{% endif %}
-        <p class="date">Added: {{ job.created_at.strftime('%Y-%m-%d') }}</p>
+        <p class="date">Posted: {{ job.posting_date.strftime('%Y-%m-%d') if job.posting_date else job.created_at.strftime('%Y-%m-%d') }}</p>
+        {% if job.source %}<p style="font-size: 12px; color: #666;">Source: {{ job.source }}</p>{% endif %}
     </div>
     {% endfor %}
 </div>
 
 {% if not jobs %}
-<p>No jobs yet. <a href="/jobs/new">Add one now</a>!</p>
+<p>No jobs found matching your criteria. <a href="/jobs/new">Add one manually</a> or <a href="/jobs">clear filters</a>!</p>
 {% endif %}
 {% endblock %}
