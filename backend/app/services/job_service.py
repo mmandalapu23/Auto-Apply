@@ -45,6 +45,7 @@ class JobService:
         limit: int = 50,
         role_category: Optional[str] = None,
         country: Optional[str] = None,
+        employment_type: Optional[str] = None,
         is_active_only: bool = True,
     ) -> List[Job]:
         """List all jobs for a user with optional filters."""
@@ -58,6 +59,9 @@ class JobService:
         
         if country:
             query = query.filter(Job.country == country)
+        
+        if employment_type:
+            query = query.filter(Job.employment_type == employment_type)
         
         return query.order_by(Job.created_at.desc()).offset(skip).limit(limit).all()
 
@@ -164,6 +168,7 @@ class JobService:
                 existing.country = payload.get("country")
                 existing.is_remote = payload.get("is_remote", False)
                 existing.employment_type = payload.get("employment_type")
+                existing.salary_range = payload.get("salary_range")
                 existing.responsibilities = payload.get("responsibilities")
                 existing.required_skills = payload.get("required_skills")
                 existing.preferred_skills = payload.get("preferred_skills")
@@ -183,6 +188,7 @@ class JobService:
                     country=payload.get("country"),
                     is_remote=payload.get("is_remote", False),
                     employment_type=payload.get("employment_type"),
+                    salary_range=payload.get("salary_range"),
                     responsibilities=payload.get("responsibilities"),
                     required_skills=payload.get("required_skills"),
                     preferred_skills=payload.get("preferred_skills"),

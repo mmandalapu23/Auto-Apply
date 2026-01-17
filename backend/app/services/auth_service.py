@@ -44,7 +44,11 @@ class AuthService:
             raise ValueError("Invalid email or password")
 
         token = create_access_token(
-            data={"sub": str(user.id), "email": user.email}
+            data={
+                "sub": str(user.id),
+                "email": user.email,
+                "role": user.role,
+            }
         )
 
         return TokenResponse(

@@ -28,21 +28,29 @@ async def jobs_page(
     db: Session = Depends(get_db),
     role: Optional[str] = None,
     country: Optional[str] = None,
+    employment_type: Optional[str] = None,
 ):
     """Display all job listings with optional filters."""
-    jobs = JobService.list_jobs(
-        db,
-        user_id=1,
-        limit=100,
-        role_category=role,
-        country=country,
-        is_active_only=True,
-    )
+    # Build filter kwargs dynamically
+    filter_kwargs = {
+        "user_id": 1,
+        "limit": 100,
+        "is_active_only": True,
+    }
+    if role:
+        filter_kwargs["role_category"] = role
+    if country:
+        filter_kwargs["country"] = country
+    if employment_type:
+        filter_kwargs["employment_type"] = employment_type
+    
+    jobs = JobService.list_jobs(db, **filter_kwargs)
     
     # Get available filter options
     all_jobs = db.query(Job).filter(Job.user_id == 1, Job.is_active == True).all()
     role_categories = sorted(set(j.role_category for j in all_jobs if j.role_category))
     countries = sorted(set(j.country for j in all_jobs if j.country))
+    employment_types = sorted(set(j.employment_type for j in all_jobs if j.employment_type))
     
     return templates.TemplateResponse(
         "jobs.html",
@@ -51,8 +59,10 @@ async def jobs_page(
             "jobs": jobs,
             "role_categories": role_categories,
             "countries": countries,
+            "employment_types": employment_types,
             "selected_role": role,
             "selected_country": country,
+            "selected_employment_type": employment_type,
         },
     )
 
@@ -95,3 +105,9 @@ async def refresh_jobs(request: Request, db: Session = Depends(get_db)):
         url=f"/jobs?message=Refreshed: {total_new} new, {total_updated} updated, {total_archived} archived",
         status_code=303,
     )
+
+
+@router.get("/dashboard")
+async def dashboard_page(request: Request):
+    """Display dashboard with metrics and analytics."""
+    return templates.TemplateResponse("dashboard.html", {"request": request})

@@ -38,8 +38,18 @@
             </div>
             
             <div>
+                <label for="employment_type" style="display: block; margin-bottom: 5px; font-weight: bold;">Job Type:</label>
+                <select name="employment_type" id="employment_type" style="padding: 8px; border-radius: 4px; border: 1px solid #ddd; min-width: 200px;">
+                    <option value="">All Types</option>
+                    {% for emp_type in employment_types %}
+                    <option value="{{ emp_type }}" {% if selected_employment_type == emp_type %}selected{% endif %}>{{ emp_type }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div>
                 <button type="submit" class="btn-primary" style="padding: 8px 20px;">Apply Filters</button>
-                {% if selected_role or selected_country %}
+                {% if selected_role or selected_country or selected_employment_type %}
                 <a href="/jobs" class="btn-primary" style="padding: 8px 20px; background: #666; text-decoration: none; display: inline-block;">Clear Filters</a>
                 {% endif %}
             </div>

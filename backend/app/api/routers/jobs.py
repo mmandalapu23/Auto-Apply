@@ -76,6 +76,7 @@ async def list_jobs(
     limit: int = 50,
     role_category: str = None,
     country: str = None,
+    employment_type: str = None,
     is_active_only: bool = True
 ):
     """List user's jobs with optional filters."""
@@ -86,6 +87,7 @@ async def list_jobs(
         limit,
         role_category=role_category,
         country=country,
+        employment_type=employment_type,
         is_active_only=is_active_only
     )
     return [JobService.job_to_schema(j) for j in jobs]

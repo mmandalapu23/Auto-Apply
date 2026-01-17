@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - AutoApply ATS</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fa;
+            color: #333;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        header h1 {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            font-size: 2rem;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+        
+        .metric-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-left: 4px solid #667eea;
+        }
+        
+        .metric-card.success {
+            border-left-color: #10b981;
+        }
+        
+        .metric-card.warning {
+            border-left-color: #f59e0b;
+        }
+        
+        .metric-card.info {
+            border-left-color: #3b82f6;
+        }
+        
+        .metric-label {
+            font-size: 0.875rem;
+            color: #666;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .metric-unit {
+            font-size: 0.875rem;
+            color: #999;
+            margin-left: 0.5rem;
+        }
+        
+        .section {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        
+        .section h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .chart {
+            width: 100%;
+            height: 300px;
+            background: #fafafa;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #999;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th {
+            background: #f9fafb;
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        tr:hover {
+            background: #f9fafb;
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 1rem 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+        
+        .stat-label {
+            color: #666;
+        }
+        
+        .stat-value {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s ease;
+        }
+        
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 2rem;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #999;
+        }
+        
+        .error {
+            background: #fee;
+            color: #c00;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+        
+        .button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: transform 0.2s;
+        }
+        
+        .button:hover {
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Dashboard</h1>
+    </header>
+    
+    <div class="container">
+        <!-- Daily Metrics -->
+        <div class="metrics-grid">
+            <div class="metric-card success" id="card-jobs-saved">
+                <div class="metric-label">Today's Jobs Saved</div>
+                <div class="metric-value">0<span class="metric-unit">jobs</span></div>
+            </div>
+            <div class="metric-card info" id="card-apps-prepared">
+                <div class="metric-label">Applications Prepared</div>
+                <div class="metric-value">0<span class="metric-unit">apps</span></div>
+            </div>
+            <div class="metric-card warning" id="card-apps-submitted">
+                <div class="metric-label">Applications Submitted</div>
+                <div class="metric-value">0<span class="metric-unit">submitted</span></div>
+            </div>
+        </div>
+        
+        <!-- Weekly Summary -->
+        <div class="section">
+            <h2>Weekly Summary (Last 7 Days)</h2>
+            <div class="grid-2">
+                <div>
+                    <div class="stat-item">
+                        <span class="stat-label">Jobs Saved</span>
+                        <span class="stat-value" id="weekly-jobs">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Applications Prepared</span>
+                        <span class="stat-value" id="weekly-apps">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Applications Submitted</span>
+                        <span class="stat-value" id="weekly-submitted">-</span>
+                    </div>
+                </div>
+                <div>
+                    <h3 style="margin-bottom: 1rem; color: #666; font-size: 0.875rem;">Monthly Summary</h3>
+                    <div class="stat-item">
+                        <span class="stat-label">Jobs Saved</span>
+                        <span class="stat-value" id="monthly-jobs">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Applications Prepared</span>
+                        <span class="stat-value" id="monthly-apps">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Applications Submitted</span>
+                        <span class="stat-value" id="monthly-submitted">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Role Distribution -->
+        <div class="section">
+            <h2>Job Distribution by Role</h2>
+            <div id="role-distribution" class="chart">Loading...</div>
+        </div>
+        
+        <!-- Top Companies -->
+        <div class="section">
+            <h2>Top 10 Companies</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Company</th>
+                        <th style="text-align: right;">Open Positions</th>
+                    </tr>
+                </thead>
+                <tbody id="companies-table">
+                    <tr><td colspan="2" class="loading">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Application Funnel -->
+        <div class="section">
+            <h2>Application Funnel</h2>
+            <div id="funnel-container" class="grid-2">
+                <div id="funnel-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">Total Applications</span>
+                        <span class="stat-value" id="total-apps">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Completion Rate</span>
+                        <span class="stat-value" id="completion-rate">0%</span>
+                    </div>
+                </div>
+                <div id="funnel-breakdown"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = '/api/v1';
+        
+        async function loadDashboard() {
+            try {
+                // Load daily metrics
+                const daily = await fetch(`${API_BASE}/dashboard/metrics/daily`).then(r => r.json());
+                document.getElementById('card-jobs-saved').querySelector('.metric-value').textContent = 
+                    daily.jobs_saved + '\\n';
+                document.getElementById('card-apps-prepared').querySelector('.metric-value').textContent = 
+                    daily.applications_prepared + '\\n';
+                document.getElementById('card-apps-submitted').querySelector('.metric-value').textContent = 
+                    daily.applications_submitted + '\\n';
+                
+                // Load weekly metrics
+                const weekly = await fetch(`${API_BASE}/dashboard/metrics/weekly`).then(r => r.json());
+                document.getElementById('weekly-jobs').textContent = weekly.jobs_saved;
+                document.getElementById('weekly-apps').textContent = weekly.applications_prepared;
+                document.getElementById('weekly-submitted').textContent = weekly.applications_submitted;
+                
+                // Load monthly metrics
+                const monthly = await fetch(`${API_BASE}/dashboard/metrics/monthly`).then(r => r.json());
+                document.getElementById('monthly-jobs').textContent = monthly.jobs_saved;
+                document.getElementById('monthly-apps').textContent = monthly.applications_prepared;
+                document.getElementById('monthly-submitted').textContent = monthly.applications_submitted;
+                
+                // Load role distribution
+                const roles = await fetch(`${API_BASE}/dashboard/distribution/roles`).then(r => r.json());
+                if (roles.length > 0) {
+                    let html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem;">';
+                    roles.forEach(role => {
+                        const percentage = ((role.count / roles.reduce((s, r) => s + r.count, 0)) * 100).toFixed(1);
+                        html += `
+                            <div>
+                                <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;">${role.category}</div>
+                                <div style="font-weight: bold; font-size: 1.5rem; margin-bottom: 0.5rem;">${role.count}</div>
+                                <div class="progress-bar"><div class="progress-fill" style="width: ${percentage}%"></div></div>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                    document.getElementById('role-distribution').innerHTML = html;
+                }
+                
+                // Load companies
+                const companies = await fetch(`${API_BASE}/dashboard/stats/companies`).then(r => r.json());
+                if (companies.length > 0) {
+                    let html = '';
+                    companies.forEach(company => {
+                        html += `<tr><td>${company.company}</td><td style="text-align: right;">${company.count}</td></tr>`;
+                    });
+                    document.getElementById('companies-table').innerHTML = html;
+                }
+                
+                // Load funnel
+                const funnel = await fetch(`${API_BASE}/dashboard/funnel`).then(r => r.json());
+                document.getElementById('total-apps').textContent = funnel.total_applications;
+                document.getElementById('completion-rate').textContent = 
+                    (funnel.completion_rate * 100).toFixed(1) + '%';
+                
+                let funnelHtml = '';
+                for (const [status, count] of Object.entries(funnel.by_status)) {
+                    const percentage = funnel.total_applications > 0 
+                        ? ((count / funnel.total_applications) * 100).toFixed(1)
+                        : 0;
+                    funnelHtml += `
+                        <div class="stat-item">
+                            <span class="stat-label">${status.replace(/_/g, ' ').toUpperCase()}</span>
+                            <span class="stat-value">${count} (${percentage}%)</span>
+                        </div>
+                    `;
+                }
+                document.getElementById('funnel-breakdown').innerHTML = funnelHtml;
+                
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+            }
+        }
+        
+        // Load dashboard on page load
+        document.addEventListener('DOMContentLoaded', loadDashboard);
+        
+        // Refresh every 30 seconds
+        setInterval(loadDashboard, 30000);
+    </script>
+</body>
+</html>

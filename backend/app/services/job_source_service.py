@@ -12,16 +12,37 @@ class JobSourceService:
 
     GREENHOUSE_API = "https://boards-api.greenhouse.io/v1/boards/{token}/jobs"
     
-    # Role categorization keywords
+    # Role categorization keywords (15+ categories for comprehensive filtering)
     ROLE_CATEGORIES = {
-        "Data Engineer": ["data engineer", "data engineering", "etl", "data pipeline"],
-        "Data Analyst": ["data analyst", "business analyst", "analytics"],
-        "Data Scientist": ["data scientist", "machine learning", "ml engineer"],
-        "Software Developer": ["software engineer", "backend", "frontend", "full stack", "developer"],
-        "DevOps Engineer": ["devops", "sre", "site reliability", "infrastructure"],
-        "Product Manager": ["product manager", "product owner", "pm"],
+        # Data & Analytics
+        "Data Engineer": ["data engineer", "data engineering", "etl", "data pipeline", "data infrastructure", "big data"],
+        "Data Analyst": ["data analyst", "business analyst", "analytics", "business intelligence", "bi developer"],
+        "Data Scientist": ["data scientist", "machine learning engineer", "ml engineer", "ml ops", "ai engineer"],
+        
+        # Software Development
+        "Backend Engineer": ["backend engineer", "backend developer", "server-side", "api developer"],
+        "Frontend Engineer": ["frontend engineer", "frontend developer", "ui developer", "react", "vue", "angular"],
+        "Full-Stack Engineer": ["full stack", "full-stack developer", "full-stack engineer"],
+        "Software Engineer": ["software engineer", "software developer", "application developer"],
+        "Mobile Developer": ["mobile engineer", "ios developer", "android developer", "mobile app", "flutter", "react native"],
+        
+        # DevOps & Infrastructure
+        "DevOps Engineer": ["devops", "site reliability engineer", "sre", "infrastructure", "cloud engineer", "aws", "gcp", "azure"],
+        "Cloud Architect": ["cloud architect", "cloud solutions", "cloud infrastructure"],
+        
+        # Management & Leadership
+        "Product Manager": ["product manager", "product owner", "pm", "group product manager"],
+        "Engineering Manager": ["engineering manager", "tech lead", "team lead", "engineering lead"],
+        "Technical Leader": ["principal engineer", "staff engineer", "architect", "technical director"],
+        
+        # QA & Testing
+        "QA Engineer": ["qa engineer", "quality assurance", "test engineer", "automation engineer", "qa automation"],
+        
+        # Other Specialties
+        "DevRel": ["developer relations", "devrel", "developer advocate", "community manager"],
         "Other": []
     }
+
 
     @classmethod
     async def fetch_greenhouse_jobs(
@@ -81,6 +102,9 @@ class JobSourceService:
             # Try to extract employment type
             employment_type = cls._extract_employment_type(raw_jd, title)
             
+            # Extract salary information
+            salary_range = cls._extract_salary(raw_jd)
+            
             # Extract country from location
             country = cls._extract_country(location)
             
@@ -96,6 +120,7 @@ class JobSourceService:
                 "country": country,
                 "is_remote": is_remote,
                 "employment_type": employment_type,
+                "salary_range": salary_range,
                 "responsibilities": responsibilities,
                 "required_skills": skills_info.get("required"),
                 "preferred_skills": skills_info.get("preferred"),
@@ -120,19 +145,43 @@ class JobSourceService:
 
     @staticmethod
     def _extract_employment_type(jd_text: str, title: str) -> Optional[str]:
-        """Extract employment type from job description or title."""
+        """
+        Extract employment type from job description or title.
+        
+        Uses explicit patterns first, then inference if not found.
+        Returns one of: Full-time, Part-time, Contract, Internship, Unknown
+        """
         text = (jd_text + " " + title).lower()
         
-        if "intern" in text:
+        # Pattern 1: Internship (most specific, check first)
+        if re.search(r'\bintern(ship)?\b', text):
             return "Internship"
-        elif "contract" in text or "contractor" in text:
+        
+        # Pattern 2: Explicit employment type declarations
+        if re.search(r'\b(contract|contractor|temp|temporary)\b', text):
             return "Contract"
-        elif "part-time" in text or "part time" in text:
+        
+        if re.search(r'\b(part.?time|part-time|pt\b)', text):
             return "Part-time"
-        elif "full-time" in text or "full time" in text or "fulltime" in text:
+        
+        if re.search(r'\b(full.?time|full-time|ft\b|fulltime)\b', text):
             return "Full-time"
         
-        return "Full-time"  # Default assumption
+        # Pattern 3: Inference from job description patterns
+        # If description mentions "contract basis" or "contractor wanted"
+        if re.search(r'contract\s+(basis|work|position)', text):
+            return "Contract"
+        
+        # If mentions "flexible hours" or "part time"
+        if re.search(r'flexible.*hours|hours.*flexible|20\s*hours|15\s*hours|10\s*hours', text):
+            return "Part-time"
+        
+        # If mentions "internship program" or "intern rotation"
+        if re.search(r'intern(ship)?.*program|summer.*intern|internship.*program', text):
+            return "Internship"
+        
+        # Default: Unknown (not "Full-time" by assumption)
+        return "Unknown"
 
     @staticmethod
     def _extract_country(location: str) -> Optional[str]:
@@ -204,6 +253,36 @@ class JobSourceService:
             return datetime.fromisoformat(date_str.replace('Z', '+00:00'))
         except:
             return None
+
+    @staticmethod
+    def _extract_salary(jd_text: str) -> Optional[str]:
+        """
+        Extract salary information from job description.
+        
+        Looks for patterns like:
+        - $100,000 - $150,000
+        - $100k - $150k
+        - $100K+
+        - Competitive salary
+        """
+        if not jd_text:
+            return None
+        
+        # Pattern 1: Dollar amounts with range (e.g., $100,000-$150,000 or $100k-$150k)
+        range_match = re.search(r'\$[\d,]+[k]?[\s-]*(?:to|-|–)\s*\$[\d,]+[k]?', jd_text, re.IGNORECASE)
+        if range_match:
+            return range_match.group(0).strip()
+        
+        # Pattern 2: Single salary with plus (e.g., $100k+)
+        plus_match = re.search(r'\$[\d,]+[k]?\+', jd_text, re.IGNORECASE)
+        if plus_match:
+            return plus_match.group(0).strip()
+        
+        # Pattern 3: "Competitive salary" or similar phrases
+        if re.search(r'competitive\s+salary|based\s+on\s+experience|commensurate\s+with', jd_text, re.IGNORECASE):
+            return "Competitive"
+        
+        return None
 
     @staticmethod
     def _html_to_text(html: str) -> str:
