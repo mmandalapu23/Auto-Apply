@@ -1,148 +1,129 @@
 """Document rendering service (HTML → PDF)."""
+from __future__ import annotations
+
 from pathlib import Path
+from typing import Iterable, List
+
 from app.schemas.resume import ResumeStructuredSchema
 
 
 class DocumentService:
-    """Document generation and rendering."""
-    
+    """Helpers for rendering resume content."""
+
     @staticmethod
     def render_resume_html(resume: ResumeStructuredSchema) -> str:
-        """Render resume to HTML."""
-        lines = [
+        """Return a very lightweight HTML resume."""
+
+        def add_section(title: str, rows: Iterable[str]) -> None:
+            lines.append(f"<h2>{title}</h2>")
+            lines.extend(rows)
+
+        lines: List[str] = [
             "<!DOCTYPE html>",
             "<html>",
             "<head>",
             '<meta charset="UTF-8">',
-            "<style>",
-            "body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }",
-            "h1 { margin: 0; }",
-            "h2 { margin-top: 20px; margin-bottom: 10px; border-bottom: 2px solid #333; }",
-            ".contact { margin-bottom: 20px; }",
-            ".job { margin-bottom: 15px; }",
-            ".bullet { margin-left: 20px; }",
-            "em { color: #666; }",
-            "</style>",
+            "<style>body{font-family:Arial, sans-serif;margin:40px;line-height:1.6;}h2{border-bottom:1px solid #444;padding-bottom:4px;} .bullet{margin-left:16px;}</style>",
             "</head>",
             "<body>",
         ]
-        
-        # Header with contact
-        lines.append("<div class='contact'>")
-        lines.append(f"<h1>{resume.summary.text.split()[0] if resume.summary.text else 'Resume'}</h1>")
-        lines.append("</div>")
-        
-        # Summary
+
+        header = resume.summary.text.split(" ")[0] if resume.summary and resume.summary.text else "Resume"
+        lines.append(f"<h1>{header}</h1>")
+
         if resume.summary and resume.summary.text:
-            lines.append("<h2>PROFESSIONAL SUMMARY</h2>")
-            lines.append(f"<p>{resume.summary.text}</p>")
-        
-        # Skills
+            add_section("Professional Summary", [f"<p>{resume.summary.text}</p>"])
+
         if resume.skills:
-            lines.append("<h2>SKILLS</h2>")
-            skills_text = ", ".join(resume.skills)
-            lines.append(f"<p>{skills_text}</p>")
-        
-        # Experience
+            skills = ", ".join(resume.skills)
+            add_section("Skills", [f"<p>{skills}</p>"])
+
         if resume.experience:
-            lines.append("<h2>EXPERIENCE</h2>")
+            experience_rows: List[str] = []
             for exp in resume.experience:
-                lines.append("<div class='job'>")
-                lines.append(f"<strong>{exp.title}</strong> | {exp.company}")
-                lines.append(f"<br><em>{exp.start_date} - {exp.end_date or 'Present'}</em>")
-                if exp.bullets:
-                    for bullet in exp.bullets:
-                        lines.append(f"<div class='bullet'>• {bullet.text}</div>")
-                lines.append("</div>")
-        
-        # Projects
+                experience_rows.append(
+                    "<div>" +
+                    f"<strong>{exp.title}</strong> | {exp.company}<br>"
+                    f"<em>{exp.start_date} - {exp.end_date or 'Present'}</em>"
+                )
+                for bullet in exp.bullets:
+                    experience_rows.append(f"<div class='bullet'>• {bullet.text}</div>")
+                experience_rows.append("</div>")
+            add_section("Experience", experience_rows)
+
         if resume.projects:
-            lines.append("<h2>PROJECTS</h2>")
+            project_rows: List[str] = []
             for proj in resume.projects:
-                lines.append("<div class='job'>")
-                lines.append(f"<strong>{proj.name}</strong>")
-                if proj.bullets:
-                    for bullet in proj.bullets:
-                        lines.append(f"<div class='bullet'>• {bullet.text}</div>")
-                lines.append("</div>")
-        
-        # Education
+                project_rows.append(f"<div><strong>{proj.name}</strong></div>")
+                for bullet in proj.bullets:
+                    project_rows.append(f"<div class='bullet'>• {bullet.text}</div>")
+            add_section("Projects", project_rows)
+
         if resume.education:
-            lines.append("<h2>EDUCATION</h2>")
+            edu_rows: List[str] = []
             for edu in resume.education:
-                lines.append(f"<p><strong>{edu.degree}</strong> in {edu.field or 'General'}")
-                lines.append(f"<br>{edu.institution}")
-                if edu.graduation_date:
-                    lines.append(f"<br><em>{edu.graduation_date}</em>")
-                lines.append("</p>")
-        
-        lines.extend([
-            "</body>",
-            "</html>"
-        ])
-        
+                degree = f"<strong>{edu.degree}</strong> in {edu.field or 'General'}"
+                dates = f"<em>{edu.graduation_date}</em>" if edu.graduation_date else ""
+                edu_rows.append(f"<p>{degree}<br>{edu.institution}<br>{dates}</p>")
+            add_section("Education", edu_rows)
+
+        lines.extend(["</body>", "</html>"])
         return "\n".join(lines)
-    
+
     @staticmethod
     def render_resume_ats_text(resume: ResumeStructuredSchema) -> str:
-        """Render resume as plain ATS text."""
-        lines = []
-        
-        # Summary
+        """Produce a plaintext resume suitable for ATS uploads."""
+
+        lines: List[str] = []
+
+        def add_block(title: str, body: Iterable[str]) -> None:
+            lines.append(title.upper())
+            lines.extend(body)
+            lines.append("")
+
         if resume.summary and resume.summary.text:
-            lines.append("PROFESSIONAL SUMMARY")
-            lines.append(resume.summary.text)
-            lines.append("")
-        
-        # Skills
+            add_block("Professional Summary", [resume.summary.text])
+
         if resume.skills:
-            lines.append("SKILLS")
-            lines.append(", ".join(resume.skills))
-            lines.append("")
-        
-        # Experience
+            add_block("Skills", [", ".join(resume.skills)])
+
         if resume.experience:
-            lines.append("EXPERIENCE")
+            body: List[str] = []
             for exp in resume.experience:
-                lines.append(f"{exp.title} | {exp.company}")
-                lines.append(f"{exp.start_date} - {exp.end_date or 'Present'}")
+                body.append(f"{exp.title} | {exp.company}")
+                body.append(f"{exp.start_date} - {exp.end_date or 'Present'}")
                 for bullet in exp.bullets:
-                    lines.append(f"* {bullet.text}")
-                lines.append("")
-        
-        # Projects
+                    body.append(f"* {bullet.text}")
+                body.append("")
+            add_block("Experience", body)
+
         if resume.projects:
-            lines.append("PROJECTS")
+            body = []
             for proj in resume.projects:
-                lines.append(f"{proj.name}")
+                body.append(proj.name)
                 for bullet in proj.bullets:
-                    lines.append(f"* {bullet.text}")
-                lines.append("")
-        
-        # Education
+                    body.append(f"* {bullet.text}")
+                body.append("")
+            add_block("Projects", body)
+
         if resume.education:
-            lines.append("EDUCATION")
+            body = []
             for edu in resume.education:
-                lines.append(f"{edu.degree} in {edu.field or 'General'}")
-                lines.append(edu.institution)
+                body.append(f"{edu.degree} in {edu.field or 'General'}")
+                body.append(edu.institution)
                 if edu.graduation_date:
-                    lines.append(edu.graduation_date)
-                lines.append("")
-        
-        return "\n".join(lines)
-    
+                    body.append(edu.graduation_date)
+                body.append("")
+            add_block("Education", body)
+
+        return "\n".join(lines).strip()
+
     @staticmethod
     async def render_resume_pdf(resume_id: int, html_content: str) -> str:
-        """
-        Render HTML to PDF using Playwright.
-        
-        For MVP: save as HTML with .pdf extension
-        Later: use Playwright to convert
-        """
-        # Use storage adapter so we can swap local disk for S3/R2.
+        """Persist resume HTML and return the stored key."""
+
         from app.services.storage_service import get_storage_adapter
 
         adapter = get_storage_adapter()
-        key = Path("resumes") / f"resume_{resume_id}.html"  # Store as HTML for MVP
-        stored_key = adapter.store_text(str(key), html_content)
-        return stored_key
+        key = Path("resumes") / f"resume_{resume_id}.html"
+        return adapter.store_text(str(key), html_content)

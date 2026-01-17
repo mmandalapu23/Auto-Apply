@@ -1,59 +1,69 @@
-"""External job source integrations (e.g., Greenhouse)."""
+"""External job source integrations for Greenhouse and other boards."""
 import re
 from html import unescape
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
 
 import httpx
 
 
 class JobSourceService:
-    """Fetch job postings from external sources."""
+    """Fetches job postings from external job boards."""
 
-    @staticmethod
+    GREENHOUSE_API = "https://boards-api.greenhouse.io/v1/boards/{token}/jobs"
+
+    @classmethod
     async def fetch_greenhouse_jobs(
+        cls,
         board_token: str,
         company: Optional[str] = None,
         limit: int = 20,
-        include_keywords: Optional[list[str]] = None,
+        include_keywords: Optional[List[str]] = None,
     ) -> List[Dict[str, Optional[str]]]:
-        """Fetch jobs from a Greenhouse board.
+        """
+        Retrieve jobs from a Greenhouse company board.
 
         Args:
-            board_token: Greenhouse board token, e.g., "airbnb".
-            company: Optional override for company name (fallback to board_token).
-            limit: Max number of jobs to return.
-        """
-        url = f"https://boards-api.greenhouse.io/v1/boards/{board_token}/jobs"
-        params = {"content": "true"}
-        async with httpx.AsyncClient(timeout=20) as client:
-            resp = await client.get(url, params=params)
-            resp.raise_for_status()
-            payload = resp.json()
+            board_token: Board identifier (e.g., "airbnb", "stripe").
+            company: Display name override; defaults to board_token.
+            limit: Maximum jobs to return.
+            include_keywords: Filter titles containing these words.
 
-        jobs = payload.get("jobs", [])
+        Returns:
+            List of job dicts with title, company, url, and raw_jd.
+        """
+        url = cls.GREENHOUSE_API.format(token=board_token)
+
+        async with httpx.AsyncClient(timeout=20) as client:
+            response = await client.get(url, params={"content": "true"})
+            response.raise_for_status()
+            data = response.json()
+
+        jobs = data.get("jobs", [])
         results: List[Dict[str, Optional[str]]] = []
-        for job in jobs[:limit]:
-            html_content = job.get("content") or ""
-            title = job.get("title") or "Untitled role"
+
+        for job in jobs:
+            if len(results) >= limit:
+                break
+
+            title = job.get("title", "Untitled")
 
             if include_keywords:
-                lowered = title.lower()
-                if not any(keyword.lower() in lowered for keyword in include_keywords):
+                title_lower = title.lower()
+                if not any(kw.lower() in title_lower for kw in include_keywords):
                     continue
 
-            results.append(
-                {
-                    "title": title,
-                    "company": company or board_token,
-                    "url": job.get("absolute_url"),
-                    "raw_jd": JobSourceService._strip_html(html_content),
-                }
-            )
+            results.append({
+                "title": title,
+                "company": company or board_token,
+                "url": job.get("absolute_url"),
+                "raw_jd": cls._html_to_text(job.get("content") or ""),
+            })
+
         return results
 
     @staticmethod
-    def _strip_html(html: str) -> str:
-        """Lightweight HTML -> text conversion."""
+    def _html_to_text(html: str) -> str:
+        """Convert HTML content to plain text."""
         text = unescape(html)
         text = re.sub(r"<br\s*/?>", "\n", text, flags=re.IGNORECASE)
         text = re.sub(r"<p\s*/?>", "\n", text, flags=re.IGNORECASE)

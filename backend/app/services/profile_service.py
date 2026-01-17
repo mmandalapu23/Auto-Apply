@@ -1,43 +1,50 @@
 """Profile service."""
+from __future__ import annotations
+
 import json
+from typing import List, Optional, Sequence, Type
+
 from sqlalchemy.orm import Session
-from app.db.models import Profile, Experience, Project, Education, Skill
-from app.schemas.profile import ProfileSchema, ProfileUpdateRequest
+
+from app.db.models import Education, Experience, Profile, Project, Skill
 from app.schemas.profile import (
-    ExperienceSchema, ProjectSchema, EducationSchema, SkillSchema,
-    ExperienceBulletSchema, ProjectBulletSchema
+    EducationSchema,
+    ExperienceBulletSchema,
+    ExperienceSchema,
+    ProfileSchema,
+    ProfileUpdateRequest,
+    ProjectBulletSchema,
+    ProjectSchema,
+    SkillSchema,
 )
 
 
 class ProfileService:
-    """Profile management."""
-    
+    """Handles read/write operations for user profiles."""
+
     @staticmethod
-    def get_or_create_profile(db: Session, user_id: int) -> Profile:
-        """Get existing profile or create new one."""
+    def get_or_create(db: Session, user_id: int) -> Profile:
         profile = db.query(Profile).filter(Profile.user_id == user_id).first()
-        if not profile:
-            # Create default profile
-            profile = Profile(user_id=user_id, email="")
-            db.add(profile)
-            db.commit()
-            db.refresh(profile)
+        if profile:
+            return profile
+
+        profile = Profile(user_id=user_id, email="")
+        db.add(profile)
+        db.commit()
+        db.refresh(profile)
         return profile
-    
+
     @staticmethod
-    def get_profile(db: Session, user_id: int) -> Profile:
-        """Get user profile."""
+    def get(db: Session, user_id: int) -> Profile:
         profile = db.query(Profile).filter(Profile.user_id == user_id).first()
         if not profile:
             raise ValueError(f"Profile for user {user_id} not found")
         return profile
-    
+
     @staticmethod
-    def update_profile(db: Session, user_id: int, request: ProfileUpdateRequest) -> Profile:
-        """Update user profile."""
-        profile = ProfileService.get_profile(db, user_id)
-        
-        # Update basic info
+    def update(db: Session, user_id: int, request: ProfileUpdateRequest) -> Profile:
+        profile = ProfileService.get(db, user_id)
+
         profile.email = request.email
         profile.phone = request.phone
         profile.location = request.location
@@ -45,114 +52,44 @@ class ProfileService:
         profile.degree = request.degree
         profile.university = request.university
         profile.graduation_year = request.graduation_year
-        
-        # Clear and rebuild experiences
-        db.query(Experience).filter(Experience.profile_id == profile.id).delete()
-        for exp_data in request.experiences:
-            bullets_json = json.dumps([{
-                "text": b.text,
-                "tech": b.tech
-            } for b in exp_data.bullets])
-            
-            exp = Experience(
-                profile_id=profile.id,
-                company=exp_data.company,
-                title=exp_data.title,
-                start_date=exp_data.start_date,
-                end_date=exp_data.end_date,
-                is_current=exp_data.is_current if hasattr(exp_data, 'is_current') else False,
-                description=bullets_json if exp_data.bullets else None
-            )
-            db.add(exp)
-        
-        # Clear and rebuild projects
-        db.query(Project).filter(Project.profile_id == profile.id).delete()
-        for proj_data in request.projects:
-            bullets_json = json.dumps([{
-                "text": b.text,
-                "tech": b.tech
-            } for b in proj_data.bullets])
-            
-            proj = Project(
-                profile_id=profile.id,
-                name=proj_data.name,
-                description=bullets_json if proj_data.bullets else None,
-                url=proj_data.url
-            )
-            db.add(proj)
-        
-        # Clear and rebuild educations
-        db.query(Education).filter(Education.profile_id == profile.id).delete()
-        for edu_data in request.educations:
-            edu = Education(
-                profile_id=profile.id,
-                institution=edu_data.institution,
-                degree=edu_data.degree,
-                field=edu_data.field,
-                start_date=edu_data.start_date,
-                end_date=edu_data.end_date,
-                gpa=edu_data.gpa
-            )
-            db.add(edu)
-        
-        # Clear and rebuild skills
-        db.query(Skill).filter(Skill.profile_id == profile.id).delete()
-        for skill_data in request.skills:
-            skill = Skill(
-                profile_id=profile.id,
-                name=skill_data.name,
-                category=skill_data.category,
-                proficiency=skill_data.proficiency
-            )
-            db.add(skill)
-        
+
+        ProfileService._replace_experiences(db, profile.id, request.experiences)
+        ProfileService._replace_projects(db, profile.id, request.projects)
+        ProfileService._replace_education(db, profile.id, request.educations)
+        ProfileService._replace_skills(db, profile.id, request.skills)
+
         db.commit()
         db.refresh(profile)
         return profile
-    
+
     @staticmethod
-    def profile_to_schema(profile: Profile) -> ProfileSchema:
-        """Convert ORM to schema."""
-        experiences = []
-        for exp in profile.experiences:
-            bullets = []
-            if exp.description:
-                try:
-                    bullets_data = json.loads(exp.description) if isinstance(exp.description, str) else []
-                    bullets = [ExperienceBulletSchema(**b) for b in bullets_data]
-                except:
-                    pass
-            
-            experiences.append(ExperienceSchema(
+    def to_schema(profile: Profile) -> ProfileSchema:
+        experiences = [
+            ExperienceSchema(
                 id=exp.id,
                 company=exp.company,
                 title=exp.title,
                 start_date=exp.start_date,
                 end_date=exp.end_date,
                 is_current=exp.is_current,
-                bullets=bullets
-            ))
-        
-        projects = []
-        for proj in profile.projects:
-            bullets = []
-            if proj.description:
-                try:
-                    bullets_data = json.loads(proj.description) if isinstance(proj.description, str) else []
-                    bullets = [ProjectBulletSchema(**b) for b in bullets_data]
-                except:
-                    pass
-            
-            projects.append(ProjectSchema(
+                bullets=ProfileService._load_bullets(exp.description, ExperienceBulletSchema),
+            )
+            for exp in profile.experiences
+        ]
+
+        projects = [
+            ProjectSchema(
                 id=proj.id,
                 name=proj.name,
-                bullets=bullets,
-                url=proj.url
-            ))
-        
-        educations = [EducationSchema.from_orm(e) for e in profile.educations]
-        skills = [SkillSchema.from_orm(s) for s in profile.skills]
-        
+                bullets=ProfileService._load_bullets(proj.description, ProjectBulletSchema),
+                url=proj.url,
+            )
+            for proj in profile.projects
+        ]
+
+        educations = [EducationSchema.from_orm(edu) for edu in profile.educations]
+        skills = [SkillSchema.from_orm(skill) for skill in profile.skills]
+
         return ProfileSchema(
             id=profile.id,
             user_id=profile.user_id,
@@ -168,5 +105,88 @@ class ProfileService:
             educations=educations,
             skills=skills,
             created_at=profile.created_at,
-            updated_at=profile.updated_at
+            updated_at=profile.updated_at,
         )
+
+    # Backwards compatible namespaces
+    get_or_create_profile = get_or_create
+    get_profile = get
+    update_profile = update
+    profile_to_schema = to_schema
+
+    # Internal helpers -------------------------------------------------
+    @staticmethod
+    def _replace_experiences(db: Session, profile_id: int, experiences: Sequence) -> None:
+        db.query(Experience).filter(Experience.profile_id == profile_id).delete()
+        for exp in experiences:
+            bullets = ProfileService._dump_bullets(exp.bullets)
+            db.add(
+                Experience(
+                    profile_id=profile_id,
+                    company=exp.company,
+                    title=exp.title,
+                    start_date=exp.start_date,
+                    end_date=exp.end_date,
+                    is_current=getattr(exp, "is_current", False),
+                    description=bullets,
+                )
+            )
+
+    @staticmethod
+    def _replace_projects(db: Session, profile_id: int, projects: Sequence) -> None:
+        db.query(Project).filter(Project.profile_id == profile_id).delete()
+        for proj in projects:
+            bullets = ProfileService._dump_bullets(proj.bullets)
+            db.add(
+                Project(
+                    profile_id=profile_id,
+                    name=proj.name,
+                    description=bullets,
+                    url=proj.url,
+                )
+            )
+
+    @staticmethod
+    def _replace_education(db: Session, profile_id: int, educations: Sequence) -> None:
+        db.query(Education).filter(Education.profile_id == profile_id).delete()
+        for edu in educations:
+            db.add(
+                Education(
+                    profile_id=profile_id,
+                    institution=edu.institution,
+                    degree=edu.degree,
+                    field=edu.field,
+                    start_date=edu.start_date,
+                    end_date=edu.end_date,
+                    gpa=edu.gpa,
+                )
+            )
+
+    @staticmethod
+    def _replace_skills(db: Session, profile_id: int, skills: Sequence) -> None:
+        db.query(Skill).filter(Skill.profile_id == profile_id).delete()
+        for skill in skills:
+            db.add(
+                Skill(
+                    profile_id=profile_id,
+                    name=skill.name,
+                    category=skill.category,
+                    proficiency=skill.proficiency,
+                )
+            )
+
+    @staticmethod
+    def _dump_bullets(bullets: Sequence) -> Optional[str]:
+        if not bullets:
+            return None
+        return json.dumps([{"text": b.text, "tech": b.tech} for b in bullets])
+
+    @staticmethod
+    def _load_bullets(serialized: str, schema_cls: Type) -> List:
+        if not serialized:
+            return []
+        try:
+            data = json.loads(serialized) if isinstance(serialized, str) else []
+            return [schema_cls(**item) for item in data]
+        except (TypeError, ValueError):
+            return []

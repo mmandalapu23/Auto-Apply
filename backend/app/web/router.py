@@ -1,6 +1,7 @@
-"""Server-rendered views for quick UI access."""
+"""Web routes for server-rendered UI pages."""
 from pathlib import Path
-from fastapi import APIRouter, Request, Depends, HTTPException
+
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -8,29 +9,26 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db
 from app.services.job_service import JobService
 
-router = APIRouter()
-
+router = APIRouter(tags=["web"])
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
 
 @router.get("/")
-async def home(request: Request):
-    # Redirect root to jobs list for MVP
+async def home():
+    """Redirect to jobs page."""
     return RedirectResponse(url="/jobs")
 
 
 @router.get("/jobs")
 async def jobs_page(request: Request, db: Session = Depends(get_db)):
-    # For MVP, show jobs for user_id=1; adjust when auth wiring is ready
+    """Display all job listings."""
     jobs = JobService.list_jobs(db, user_id=1, limit=50)
-    print(f"DEBUG: Found {len(jobs)} jobs for user_id=1")
-    for job in jobs:
-        print(f"  - Job: id={job.id}, title={job.title}")
     return templates.TemplateResponse("jobs.html", {"request": request, "jobs": jobs})
 
 
 @router.get("/jobs/{job_id}")
 async def job_detail(request: Request, job_id: int, db: Session = Depends(get_db)):
+    """Display job details page."""
     try:
         job = JobService.get_job(db, job_id, user_id=1)
     except ValueError as exc:
