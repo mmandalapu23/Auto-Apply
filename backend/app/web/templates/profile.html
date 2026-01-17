@@ -1,0 +1,78 @@
+{% extends "layout.html" %}
+
+{% block title %}My Profile - AutoApply ATS{% endblock %}
+
+{% block content %}
+<h2>My Profile</h2>
+
+<form method="POST" class="form">
+    <div class="form-group">
+        <label>Email</label>
+        <input type="email" name="email" value="{{ profile.email }}" required>
+    </div>
+
+    <div class="form-group">
+        <label>Phone</label>
+        <input type="tel" name="phone" value="{{ profile.phone or '' }}">
+    </div>
+
+    <div class="form-group">
+        <label>Location</label>
+        <input type="text" name="location" value="{{ profile.location or '' }}">
+    </div>
+
+    <div class="form-group">
+        <label>Professional Summary</label>
+        <textarea name="summary" rows="4">{{ profile.summary or '' }}</textarea>
+    </div>
+
+    <h3>Education</h3>
+    <div class="form-group">
+        <label>Degree</label>
+        <input type="text" name="degree" value="{{ profile.degree or '' }}">
+    </div>
+
+    <div class="form-group">
+        <label>University</label>
+        <input type="text" name="university" value="{{ profile.university or '' }}">
+    </div>
+
+    <div class="form-group">
+        <label>Graduation Year</label>
+        <input type="number" name="graduation_year" value="{{ profile.graduation_year or '' }}">
+    </div>
+
+    <h3>Experience</h3>
+    {% for exp in profile.experiences %}
+    <div class="experience-item">
+        <div class="form-group">
+            <label>Company</label>
+            <input type="text" name="exp_company[]" value="{{ exp.company }}">
+        </div>
+
+        <div class="form-group">
+            <label>Title</label>
+            <input type="text" name="exp_title[]" value="{{ exp.title }}">
+        </div>
+
+        <div class="form-group">
+            <label>Start Date (YYYY-MM)</label>
+            <input type="text" name="exp_start[]" value="{{ exp.start_date }}">
+        </div>
+
+        <div class="form-group">
+            <label>End Date (YYYY-MM)</label>
+            <input type="text" name="exp_end[]" value="{{ exp.end_date or '' }}">
+        </div>
+
+        <div class="form-group">
+            <label>Bullet Points (one per line)</label>
+            <textarea name="exp_bullets[]" rows="4">{% for b in exp.bullets %}{{ b.text }}
+{% endfor %}</textarea>
+        </div>
+    </div>
+    {% endfor %}
+
+    <button type="submit" class="btn-primary">Save Profile</button>
+</form>
+{% endblock %}

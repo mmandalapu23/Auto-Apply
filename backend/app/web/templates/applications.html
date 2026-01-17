@@ -1,0 +1,41 @@
+{% extends "layout.html" %}
+
+{% block title %}Applications - AutoApply ATS{% endblock %}
+
+{% block content %}
+<h2>Applications</h2>
+
+<div class="filter-bar">
+    <a href="?status=" class="filter-btn {% if not current_status %}active{% endif %}">All</a>
+    <a href="?status=ready_for_review" class="filter-btn {% if current_status == 'ready_for_review' %}active{% endif %}">Ready for Review</a>
+    <a href="?status=submitted" class="filter-btn {% if current_status == 'submitted' %}active{% endif %}">Submitted</a>
+    <a href="?status=completed" class="filter-btn {% if current_status == 'completed' %}active{% endif %}">Completed</a>
+</div>
+
+<div class="applications-list">
+    {% for app in applications %}
+    <div class="app-card">
+        <h3>{{ app.job.title }}</h3>
+        <p><strong>{{ app.job.company }}</strong></p>
+        
+        <div class="app-details">
+            <p><strong>Status:</strong> <span class="badge badge-{{ app.status }}">{{ app.status }}</span></p>
+            {% if app.match_score %}
+            <p><strong>Match:</strong> {{ (app.match_score.overall_score * 100)|int }}%</p>
+            {% endif %}
+            <p class="date">{{ app.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+        </div>
+
+        {% if app.status == 'ready_for_review' %}
+        <form method="POST" action="/applications/{{ app.id }}/submit" style="display: inline;">
+            <button type="submit" class="btn-success">Submit Application</button>
+        </form>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+{% if not applications %}
+<p>No applications yet. <a href="/jobs">Add a job</a> to get started!</p>
+{% endif %}
+{% endblock %}

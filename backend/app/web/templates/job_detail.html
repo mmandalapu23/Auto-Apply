@@ -1,0 +1,41 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ job.title }} - AutoApply ATS{% endblock %}
+
+{% block content %}
+<h2>{{ job.title }}</h2>
+<p><strong>{{ job.company }}</strong></p>
+{% if job.url %}<p><a href="{{ job.url }}" target="_blank">View Job</a></p>{% endif %}
+
+<h3>Job Description</h3>
+<pre>{{ job.raw_jd }}</pre>
+
+<h3>Match Analysis</h3>
+{% if match_score %}
+<div class="match-score">
+    <p><strong>Overall Match: {{ (match_score.overall_score * 100)|int }}%</strong></p>
+    <p>Skills Match: {{ (match_score.skills_match * 100)|int }}%</p>
+    <p>Experience Match: {{ (match_score.experience_match * 100)|int }}%</p>
+</div>
+
+{% if match_score.missing_requirements %}
+<h4>Missing Requirements</h4>
+<ul>
+    {% for req in match_score.missing_requirements %}
+    <li>{{ req.type }}: {{ req.name }} ({{ req.importance }})</li>
+    {% endfor %}
+</ul>
+{% endif %}
+{% endif %}
+
+<h3>Generate Resume</h3>
+<form method="POST" action="/jobs/{{ job.id }}/generate">
+    <button type="submit" class="btn-primary">Generate Tailored Resume</button>
+</form>
+
+{% if resume %}
+<h3>Generated Resume</h3>
+<a href="/resumes/{{ resume.id }}/pdf" class="btn-secondary">Download PDF</a>
+<a href="/resumes/{{ resume.id }}" class="btn-secondary">View Full Resume</a>
+{% endif %}
+{% endblock %}

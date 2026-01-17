@@ -1,0 +1,61 @@
+{% extends "layout.html" %}
+
+{% block title %}Resume - AutoApply ATS{% endblock %}
+
+{% block content %}
+<h2>Resume Preview</h2>
+
+<div class="resume-preview">
+    <div class="resume-content">
+        <h1>{{ resume.structured_data.summary.text.split()[0:5]|join(' ') }}</h1>
+        
+        <h3>SUMMARY</h3>
+        <p>{{ resume.structured_data.summary.text }}</p>
+
+        <h3>SKILLS</h3>
+        <p>{{ resume.structured_data.skills|join(', ') }}</p>
+
+        <h3>EXPERIENCE</h3>
+        {% for exp in resume.structured_data.experience %}
+        <div class="exp-item">
+            <h4>{{ exp.title }} | {{ exp.company }}</h4>
+            <p class="date">{{ exp.start_date }} - {{ exp.end_date or 'Present' }}</p>
+            <ul>
+                {% for bullet in exp.bullets %}
+                <li>{{ bullet.text }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endfor %}
+
+        <h3>PROJECTS</h3>
+        {% for proj in resume.structured_data.projects %}
+        <div class="proj-item">
+            <h4>{{ proj.name }}</h4>
+            <ul>
+                {% for bullet in proj.bullets %}
+                <li>{{ bullet.text }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endfor %}
+
+        <h3>EDUCATION</h3>
+        {% for edu in resume.structured_data.education %}
+        <p><strong>{{ edu.degree }}{% if edu.field %} in {{ edu.field }}{% endif %}</strong><br>
+        {{ edu.institution }}{% if edu.graduation_date %}<br>{{ edu.graduation_date }}{% endif %}</p>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="actions">
+    <a href="/resumes/{{ resume.id }}/pdf" class="btn-primary">Download PDF</a>
+    <a href="/resumes/{{ resume.id }}/text" class="btn-secondary">View ATS Text</a>
+</div>
+
+{% if resume.validation_passed %}
+<div class="alert alert-success">✓ Resume passed validation</div>
+{% else %}
+<div class="alert alert-warning">⚠ Resume has validation issues</div>
+{% endif %}
+{% endblock %}
